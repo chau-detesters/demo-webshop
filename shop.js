@@ -375,10 +375,14 @@ if (document.readyState !== "loading") {
 
 // Patch basket functions to update indicator
 const origAddToBasket = window.addToBasket;
-window.addToBasket = function (product) {
-  const success = origAddToBasket(product);
+window.addToBasket = function (product, selectedAddons) {
+  const success = origAddToBasket(product, selectedAddons);
   if (success) {
     renderBasketIndicator();
+    // If we're on the basket page, re-render it
+    if (document.getElementById("basketList")) {
+      renderBasket();
+    }
   }
 };
 const origClearBasket = window.clearBasket;
