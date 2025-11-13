@@ -17,6 +17,40 @@ function getBasket() {
     const basket = localStorage.getItem("basket");
     if (!basket) return [];
     const parsed = JSON.parse(basket);
+    
+    // Handle backward compatibility: migrate old string array to new object structure
+    if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0] === "string") {
+      // Old format: array of strings, migrate to new format
+      const migrated = [];
+      let currentItem = null;
+      
+      parsed.forEach((item) => {
+        if (PRODUCTS[item]) {
+          // It's a product, create new basket item
+          if (currentItem) {
+            migrated.push(currentItem);
+          }
+          currentItem = { product: item, addons: [] };
+        } else if (ADDONS[item]) {
+          // It's an addon, add to current item or create standalone
+          if (currentItem) {
+            currentItem.addons.push(item);
+          } else {
+            // No product yet, create item with just addon (edge case)
+            currentItem = { product: null, addons: [item] };
+          }
+        }
+      });
+      
+      if (currentItem) {
+        migrated.push(currentItem);
+      }
+      
+      // Save migrated format
+      localStorage.setItem("basket", JSON.stringify(migrated));
+      return migrated;
+    }
+    
     return Array.isArray(parsed) ? parsed : [];
   } catch (error) {
     console.warn("Error parsing basket from localStorage:", error);
@@ -27,18 +61,12 @@ function getBasket() {
 function addToBasket(product) {
   const basket = getBasket();
   
-  // Check for incompatibility: strawberries and bananas cannot be combined
-  const hasBanana = basket.includes("banana");
-  const hasStrawberry = basket.includes("strawberry");
+  // Check if it's a product or an addon
+  const isProduct = PRODUCTS[product] !== undefined;
+  const isAddon = ADDONS[product] !== undefined;
   
-  if (product === "strawberry" && hasBanana) {
-    showErrorMessage("Strawberries and bananas cannot be combined.");
-    return false;
-  }
-  
-  if (product === "banana" && hasStrawberry) {
-    showErrorMessage("Strawberries and bananas cannot be combined.");
-    return false;
+  if (!isProduct && !isAddon) {
+    return false; // Unknown item
   }
   
   // Special handling for vanilla ice cream - Ghislain has taken it!
@@ -47,7 +75,39 @@ function addToBasket(product) {
     return false; // Don't add to basket, Ghislain took it
   }
   
-  basket.push(product);
+  if (isProduct) {
+    // Check for incompatibility: strawberries and bananas cannot be combined
+    const hasBanana = basket.some(item => item.product === "banana");
+    const hasStrawberry = basket.some(item => item.product === "strawberry");
+    
+    if (product === "strawberry" && hasBanana) {
+      showErrorMessage("Strawberries and bananas cannot be combined.");
+      return false;
+    }
+    
+    if (product === "banana" && hasStrawberry) {
+      showErrorMessage("Strawberries and bananas cannot be combined.");
+      return false;
+    }
+    
+    // Add new product with empty addons array
+    basket.push({ product: product, addons: [] });
+  } else if (isAddon) {
+    // Add addon to the last product in basket
+    if (basket.length === 0) {
+      showErrorMessage("Please add a product first before adding add-ons.");
+      return false;
+    }
+    
+    const lastItem = basket[basket.length - 1];
+    if (lastItem.product === null) {
+      showErrorMessage("Please add a product first before adding add-ons.");
+      return false;
+    }
+    
+    lastItem.addons.push(product);
+  }
+  
   localStorage.setItem("basket", JSON.stringify(basket));
   return true;
 }
@@ -241,33 +301,48 @@ function renderBasket() {
     return;
   }
   
-  // Group identical products and count quantities
-  const productCounts = {};
-  const addonCounts = {};
+  // Group identical product+addon combinations
+  const itemGroups = {};
   
   basket.forEach((item) => {
-    if (PRODUCTS[item]) {
-      productCounts[item] = (productCounts[item] || 0) + 1;
-    } else if (ADDONS[item]) {
-      addonCounts[item] = (addonCounts[item] || 0) + 1;
+    if (!item.product) return; // Skip items without products
+    
+    // Create a key based on product and sorted addons
+    const addonsKey = item.addons && item.addons.length > 0 
+      ? item.addons.slice().sort().join(",") 
+      : "";
+    const key = `${item.product}|${addonsKey}`;
+    
+    if (!itemGroups[key]) {
+      itemGroups[key] = {
+        product: item.product,
+        addons: item.addons ? item.addons.slice() : [],
+        quantity: 0
+      };
     }
+    itemGroups[key].quantity++;
   });
   
-  // Display grouped products with quantities
-  Object.keys(productCounts).forEach((product) => {
-    const item = PRODUCTS[product];
-    const quantity = productCounts[product];
+  // Display grouped items
+  Object.keys(itemGroups).forEach((key) => {
+    const group = itemGroups[key];
+    const product = PRODUCTS[group.product];
+    if (!product) return;
+    
     const li = document.createElement("li");
-    li.innerHTML = `<span class='basket-emoji'>${item.emoji}</span> <span>${quantity}x ${item.name}</span>`;
-    basketList.appendChild(li);
-  });
-  
-  // Display grouped add-ons with quantities
-  Object.keys(addonCounts).forEach((addon) => {
-    const item = ADDONS[addon];
-    const quantity = addonCounts[addon];
-    const li = document.createElement("li");
-    li.innerHTML = `<span class='basket-emoji'>${item.emoji}</span> <span>${quantity}x ${item.name}</span>`;
+    
+    // Build display text
+    let displayText = `${group.quantity}x ${product.name}`;
+    
+    if (group.addons && group.addons.length > 0) {
+      const addonNames = group.addons.map(addon => {
+        const addonInfo = ADDONS[addon];
+        return addonInfo ? addonInfo.name : addon;
+      });
+      displayText += ` with ${addonNames.join(", ")}`;
+    }
+    
+    li.innerHTML = `<span class='basket-emoji'>${product.emoji}</span> <span>${displayText}</span>`;
     basketList.appendChild(li);
   });
   
@@ -284,8 +359,12 @@ function renderBasketIndicator() {
     indicator.className = "basket-indicator";
     basketLink.appendChild(indicator);
   }
-  if (basket.length > 0) {
-    indicator.textContent = basket.length;
+  
+  // Count total items (products with their addons count as 1 item)
+  const itemCount = basket.filter(item => item.product !== null).length;
+  
+  if (itemCount > 0) {
+    indicator.textContent = itemCount;
     indicator.style.display = "flex";
   } else {
     indicator.style.display = "none";
