@@ -330,11 +330,14 @@ function renderBasket() {
     let displayText = `${group.quantity}x ${product.name}`;
     
     if (group.addons && group.addons.length > 0) {
-      const addonNames = group.addons.map(addon => {
+      const addonDisplay = group.addons.map(addon => {
         const addonInfo = ADDONS[addon];
-        return addonInfo ? addonInfo.name : addon;
+        if (addonInfo) {
+          return `${addonInfo.emoji} ${addonInfo.name}`;
+        }
+        return addon;
       });
-      displayText += ` with ${addonNames.join(", ")}`;
+      displayText += ` with ${addonDisplay.join(", ")}`;
     }
     
     li.innerHTML = `<span class='basket-emoji'>${product.emoji}</span> <span>${displayText}</span>`;
