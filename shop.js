@@ -2,6 +2,7 @@ const PRODUCTS = {
   apple: { name: "Apple", emoji: "🍏" },
   banana: { name: "Banana", emoji: "🍌" },
   lemon: { name: "Lemon", emoji: "🍋" },
+  strawberry: { name: "Strawberry", emoji: "🍓" },
 };
 
 function getBasket() {
@@ -18,8 +19,72 @@ function getBasket() {
 
 function addToBasket(product) {
   const basket = getBasket();
+  
+  // Check for incompatibility: strawberries and bananas cannot be combined
+  const hasBanana = basket.includes("banana");
+  const hasStrawberry = basket.includes("strawberry");
+  
+  if (product === "strawberry" && hasBanana) {
+    showErrorMessage("Strawberries and bananas cannot be combined.");
+    return false;
+  }
+  
+  if (product === "banana" && hasStrawberry) {
+    showErrorMessage("Strawberries and bananas cannot be combined.");
+    return false;
+  }
+  
   basket.push(product);
   localStorage.setItem("basket", JSON.stringify(basket));
+  return true;
+}
+
+function showErrorMessage(message) {
+  // Remove any existing error messages
+  const existingError = document.getElementById("errorMessage");
+  if (existingError) {
+    existingError.remove();
+  }
+  
+  // Create error message element
+  const errorDiv = document.createElement("div");
+  errorDiv.id = "errorMessage";
+  errorDiv.style.cssText = `
+    background: #ffebee;
+    color: #c62828;
+    border: 2px solid #c62828;
+    border-radius: 8px;
+    padding: 1rem;
+    margin: 1rem 0;
+    font-size: 1.1rem;
+    font-weight: 500;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(198, 40, 40, 0.15);
+  `;
+  errorDiv.textContent = message;
+  
+  // Find the button container or content box to insert the error message
+  const buttonContainer = document.querySelector(".button-container");
+  const contentBox = document.querySelector(".content-box");
+  
+  if (buttonContainer) {
+    buttonContainer.parentNode.insertBefore(errorDiv, buttonContainer.nextSibling);
+  } else if (contentBox) {
+    contentBox.appendChild(errorDiv);
+  } else {
+    // Fallback: insert at the beginning of main
+    const main = document.querySelector("main");
+    if (main) {
+      main.insertBefore(errorDiv, main.firstChild);
+    }
+  }
+  
+  // Auto-remove error message after 5 seconds
+  setTimeout(() => {
+    if (errorDiv.parentNode) {
+      errorDiv.remove();
+    }
+  }, 5000);
 }
 
 function clearBasket() {
@@ -86,8 +151,10 @@ if (document.readyState !== "loading") {
 // Patch basket functions to update indicator
 const origAddToBasket = window.addToBasket;
 window.addToBasket = function (product) {
-  origAddToBasket(product);
-  renderBasketIndicator();
+  const success = origAddToBasket(product);
+  if (success) {
+    renderBasketIndicator();
+  }
 };
 const origClearBasket = window.clearBasket;
 window.clearBasket = function () {
