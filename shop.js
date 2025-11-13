@@ -102,8 +102,10 @@ function toggleAddonSelection(button, addonId) {
   
   if (isSelected) {
     button.classList.remove("addon-selected");
+    button.setAttribute("aria-pressed", "false");
   } else {
     button.classList.add("addon-selected");
+    button.setAttribute("aria-pressed", "true");
   }
 }
 
@@ -117,6 +119,8 @@ function showErrorMessage(message) {
   // Create error message element
   const errorDiv = document.createElement("div");
   errorDiv.id = "errorMessage";
+  errorDiv.setAttribute("role", "alert");
+  errorDiv.setAttribute("aria-live", "assertive");
   errorDiv.style.cssText = `
     background: #ffebee;
     color: #c62828;
@@ -162,9 +166,18 @@ function showGhislainNotification() {
     existingPopup.remove();
   }
   
+  // Hide main content from screen readers when modal is open
+  const mainContent = document.querySelector("main");
+  if (mainContent) {
+    mainContent.setAttribute("aria-hidden", "true");
+  }
+  
   // Create overlay
   const overlay = document.createElement("div");
   overlay.id = "ghislainPopup";
+  overlay.setAttribute("role", "dialog");
+  overlay.setAttribute("aria-modal", "true");
+  overlay.setAttribute("aria-labelledby", "ghislainMessage");
   overlay.style.cssText = `
     position: fixed;
     top: 0;
@@ -195,6 +208,7 @@ function showGhislainNotification() {
   
   // Create message
   const message = document.createElement("div");
+  message.id = "ghislainMessage";
   message.style.cssText = `
     font-size: 1.3rem;
     font-weight: 600;
@@ -236,9 +250,15 @@ function showGhislainNotification() {
     this.style.background = "#e53935";
     this.style.transform = "scale(1)";
   };
-  closeButton.onclick = function() {
+  const closeModal = function() {
     overlay.remove();
+    // Restore main content accessibility
+    if (mainContent) {
+      mainContent.removeAttribute("aria-hidden");
+    }
   };
+  
+  closeButton.onclick = closeModal;
   
   // Assemble pop-up
   popupContent.appendChild(emojiDisplay);
@@ -249,12 +269,24 @@ function showGhislainNotification() {
   // Add to page
   document.body.appendChild(overlay);
   
+  // Focus trap: focus the close button
+  closeButton.focus();
+  
   // Close on overlay click (outside pop-up)
   overlay.onclick = function(e) {
     if (e.target === overlay) {
-      overlay.remove();
+      closeModal();
     }
   };
+  
+  // Close on ESC key
+  const handleEscape = function(e) {
+    if (e.key === "Escape" || e.keyCode === 27) {
+      closeModal();
+      document.removeEventListener("keydown", handleEscape);
+    }
+  };
+  document.addEventListener("keydown", handleEscape);
   
   // Add CSS animations if not already added
   if (!document.getElementById("ghislainAnimations")) {
@@ -289,6 +321,12 @@ function renderBasket() {
   const basketList = document.getElementById("basketList");
   const cartButtonsRow = document.querySelector(".cart-buttons-row");
   if (!basketList) return;
+  
+  // Ensure basket list has aria-live for dynamic updates
+  if (!basketList.getAttribute("aria-live")) {
+    basketList.setAttribute("aria-live", "polite");
+  }
+  
   basketList.innerHTML = "";
   if (basket.length === 0) {
     basketList.innerHTML = "<li>No products in basket.</li>";
