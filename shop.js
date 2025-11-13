@@ -5,6 +5,13 @@ const PRODUCTS = {
   strawberry: { name: "Strawberry", emoji: "🍓" },
 };
 
+const ADDONS = {
+  "whipped-cream": { name: "Whipped Cream", emoji: "🥛" },
+  chocolate: { name: "Chocolate", emoji: "🍫" },
+  pancakes: { name: "Pancakes", emoji: "🥞" },
+  "vanilla-ice-cream": { name: "Vanilla Ice Cream", emoji: "🍦" },
+};
+
 function getBasket() {
   try {
     const basket = localStorage.getItem("basket");
@@ -32,6 +39,12 @@ function addToBasket(product) {
   if (product === "banana" && hasStrawberry) {
     showErrorMessage("Strawberries and bananas cannot be combined.");
     return false;
+  }
+  
+  // Special handling for vanilla ice cream - Ghislain has taken it!
+  if (product === "vanilla-ice-cream") {
+    showGhislainNotification();
+    return false; // Don't add to basket, Ghislain took it
   }
   
   basket.push(product);
@@ -87,6 +100,131 @@ function showErrorMessage(message) {
   }, 5000);
 }
 
+function showGhislainNotification() {
+  // Remove any existing pop-up
+  const existingPopup = document.getElementById("ghislainPopup");
+  if (existingPopup) {
+    existingPopup.remove();
+  }
+  
+  // Create overlay
+  const overlay = document.createElement("div");
+  overlay.id = "ghislainPopup";
+  overlay.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    animation: fadeIn 0.3s ease-in;
+  `;
+  
+  // Create pop-up content
+  const popupContent = document.createElement("div");
+  popupContent.style.cssText = `
+    background: #fff;
+    border-radius: 18px;
+    padding: 2rem;
+    max-width: 400px;
+    width: 90%;
+    text-align: center;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    position: relative;
+    animation: slideUp 0.3s ease-out;
+  `;
+  
+  // Create message
+  const message = document.createElement("div");
+  message.style.cssText = `
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: #c62828;
+    margin-bottom: 1.5rem;
+    line-height: 1.5;
+  `;
+  message.textContent = "Ghislain has taken the last ice cream bowl";
+  
+  // Create emoji display
+  const emojiDisplay = document.createElement("div");
+  emojiDisplay.style.cssText = `
+    font-size: 4rem;
+    margin: 1rem 0;
+  `;
+  emojiDisplay.innerHTML = "🍦😏";
+  
+  // Create close button
+  const closeButton = document.createElement("button");
+  closeButton.textContent = "Acknowledge Disappointment";
+  closeButton.style.cssText = `
+    background: #e53935;
+    color: #fff;
+    border: 2.5px solid #111;
+    border-radius: 30px;
+    padding: 0.8rem 1.5rem;
+    font-size: 1.1rem;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(229, 57, 53, 0.18);
+    transition: background 0.2s, transform 0.15s;
+    margin-top: 1rem;
+  `;
+  closeButton.onmouseover = function() {
+    this.style.background = "#b71c1c";
+    this.style.transform = "scale(1.04)";
+  };
+  closeButton.onmouseout = function() {
+    this.style.background = "#e53935";
+    this.style.transform = "scale(1)";
+  };
+  closeButton.onclick = function() {
+    overlay.remove();
+  };
+  
+  // Assemble pop-up
+  popupContent.appendChild(emojiDisplay);
+  popupContent.appendChild(message);
+  popupContent.appendChild(closeButton);
+  overlay.appendChild(popupContent);
+  
+  // Add to page
+  document.body.appendChild(overlay);
+  
+  // Close on overlay click (outside pop-up)
+  overlay.onclick = function(e) {
+    if (e.target === overlay) {
+      overlay.remove();
+    }
+  };
+  
+  // Add CSS animations if not already added
+  if (!document.getElementById("ghislainAnimations")) {
+    const style = document.createElement("style");
+    style.id = "ghislainAnimations";
+    style.textContent = `
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      @keyframes slideUp {
+        from {
+          transform: translateY(30px);
+          opacity: 0;
+        }
+        to {
+          transform: translateY(0);
+          opacity: 1;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+}
+
 function clearBasket() {
   localStorage.removeItem("basket");
 }
@@ -105,9 +243,13 @@ function renderBasket() {
   
   // Group identical products and count quantities
   const productCounts = {};
-  basket.forEach((product) => {
-    if (PRODUCTS[product]) {
-      productCounts[product] = (productCounts[product] || 0) + 1;
+  const addonCounts = {};
+  
+  basket.forEach((item) => {
+    if (PRODUCTS[item]) {
+      productCounts[item] = (productCounts[item] || 0) + 1;
+    } else if (ADDONS[item]) {
+      addonCounts[item] = (addonCounts[item] || 0) + 1;
     }
   });
   
@@ -115,6 +257,15 @@ function renderBasket() {
   Object.keys(productCounts).forEach((product) => {
     const item = PRODUCTS[product];
     const quantity = productCounts[product];
+    const li = document.createElement("li");
+    li.innerHTML = `<span class='basket-emoji'>${item.emoji}</span> <span>${quantity}x ${item.name}</span>`;
+    basketList.appendChild(li);
+  });
+  
+  // Display grouped add-ons with quantities
+  Object.keys(addonCounts).forEach((addon) => {
+    const item = ADDONS[addon];
+    const quantity = addonCounts[addon];
     const li = document.createElement("li");
     li.innerHTML = `<span class='basket-emoji'>${item.emoji}</span> <span>${quantity}x ${item.name}</span>`;
     basketList.appendChild(li);
