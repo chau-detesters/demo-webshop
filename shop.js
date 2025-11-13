@@ -37,14 +37,24 @@ function renderBasket() {
     if (cartButtonsRow) cartButtonsRow.style.display = "none";
     return;
   }
+  
+  // Group identical products and count quantities
+  const productCounts = {};
   basket.forEach((product) => {
-    const item = PRODUCTS[product];
-    if (item) {
-      const li = document.createElement("li");
-      li.innerHTML = `<span class='basket-emoji'>${item.emoji}</span> <span>${item.name}</span>`;
-      basketList.appendChild(li);
+    if (PRODUCTS[product]) {
+      productCounts[product] = (productCounts[product] || 0) + 1;
     }
   });
+  
+  // Display grouped products with quantities
+  Object.keys(productCounts).forEach((product) => {
+    const item = PRODUCTS[product];
+    const quantity = productCounts[product];
+    const li = document.createElement("li");
+    li.innerHTML = `<span class='basket-emoji'>${item.emoji}</span> <span>${quantity}x ${item.name}</span>`;
+    basketList.appendChild(li);
+  });
+  
   if (cartButtonsRow) cartButtonsRow.style.display = "flex";
 }
 
