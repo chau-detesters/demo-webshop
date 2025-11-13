@@ -58,7 +58,7 @@ function getBasket() {
   }
 }
 
-function addToBasket(product) {
+function addToBasket(product, targetProduct) {
   const basket = getBasket();
   
   // Check if it's a product or an addon
@@ -93,19 +93,48 @@ function addToBasket(product) {
     // Add new product with empty addons array
     basket.push({ product: product, addons: [] });
   } else if (isAddon) {
-    // Add addon to the last product in basket
-    if (basket.length === 0) {
-      showErrorMessage("Please add a product first before adding add-ons.");
-      return false;
+    // If targetProduct is specified, ensure that product is in basket first
+    if (targetProduct) {
+      // Find or create the target product in basket
+      let targetItem = basket.find(item => item.product === targetProduct);
+      
+      if (!targetItem) {
+        // Check for incompatibility before adding
+        const hasBanana = basket.some(item => item.product === "banana");
+        const hasStrawberry = basket.some(item => item.product === "strawberry");
+        
+        if (targetProduct === "strawberry" && hasBanana) {
+          showErrorMessage("Strawberries and bananas cannot be combined.");
+          return false;
+        }
+        
+        if (targetProduct === "banana" && hasStrawberry) {
+          showErrorMessage("Strawberries and bananas cannot be combined.");
+          return false;
+        }
+        
+        // Add the product first
+        targetItem = { product: targetProduct, addons: [] };
+        basket.push(targetItem);
+      }
+      
+      // Add addon to the target product
+      targetItem.addons.push(product);
+    } else {
+      // No target product specified, add to last product in basket
+      if (basket.length === 0) {
+        showErrorMessage("Please add a product first before adding add-ons.");
+        return false;
+      }
+      
+      const lastItem = basket[basket.length - 1];
+      if (lastItem.product === null) {
+        showErrorMessage("Please add a product first before adding add-ons.");
+        return false;
+      }
+      
+      lastItem.addons.push(product);
     }
-    
-    const lastItem = basket[basket.length - 1];
-    if (lastItem.product === null) {
-      showErrorMessage("Please add a product first before adding add-ons.");
-      return false;
-    }
-    
-    lastItem.addons.push(product);
   }
   
   localStorage.setItem("basket", JSON.stringify(basket));
