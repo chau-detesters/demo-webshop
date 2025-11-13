@@ -390,6 +390,13 @@ footer a {
   box-shadow: 0 4px 12px rgba(0, 119, 255, 0.15);
 }
 
+.addon-btn.addon-selected {
+  background: #e3f2fd;
+  border-color: #0077ff;
+  border-width: 3px;
+  box-shadow: 0 4px 12px rgba(0, 119, 255, 0.25);
+}
+
 .addon-emoji {
   font-size: 2.5rem;
 }

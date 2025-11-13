@@ -58,87 +58,53 @@ function getBasket() {
   }
 }
 
-function addToBasket(product, targetProduct) {
+function addToBasket(product, selectedAddons) {
   const basket = getBasket();
   
-  // Check if it's a product or an addon
+  // Check if it's a product
   const isProduct = PRODUCTS[product] !== undefined;
-  const isAddon = ADDONS[product] !== undefined;
   
-  if (!isProduct && !isAddon) {
+  if (!isProduct) {
     return false; // Unknown item
   }
   
-  // Special handling for vanilla ice cream - Ghislain has taken it!
-  if (product === "vanilla-ice-cream") {
-    showGhislainNotification();
-    return false; // Don't add to basket, Ghislain took it
+  // Check for incompatibility: strawberries and bananas cannot be combined
+  const hasBanana = basket.some(item => item.product === "banana");
+  const hasStrawberry = basket.some(item => item.product === "strawberry");
+  
+  if (product === "strawberry" && hasBanana) {
+    showErrorMessage("Strawberries and bananas cannot be combined.");
+    return false;
   }
   
-  if (isProduct) {
-    // Check for incompatibility: strawberries and bananas cannot be combined
-    const hasBanana = basket.some(item => item.product === "banana");
-    const hasStrawberry = basket.some(item => item.product === "strawberry");
-    
-    if (product === "strawberry" && hasBanana) {
-      showErrorMessage("Strawberries and bananas cannot be combined.");
-      return false;
-    }
-    
-    if (product === "banana" && hasStrawberry) {
-      showErrorMessage("Strawberries and bananas cannot be combined.");
-      return false;
-    }
-    
-    // Add new product with empty addons array
-    basket.push({ product: product, addons: [] });
-  } else if (isAddon) {
-    // If targetProduct is specified, ensure that product is in basket first
-    if (targetProduct) {
-      // Find or create the target product in basket
-      let targetItem = basket.find(item => item.product === targetProduct);
-      
-      if (!targetItem) {
-        // Check for incompatibility before adding
-        const hasBanana = basket.some(item => item.product === "banana");
-        const hasStrawberry = basket.some(item => item.product === "strawberry");
-        
-        if (targetProduct === "strawberry" && hasBanana) {
-          showErrorMessage("Strawberries and bananas cannot be combined.");
-          return false;
-        }
-        
-        if (targetProduct === "banana" && hasStrawberry) {
-          showErrorMessage("Strawberries and bananas cannot be combined.");
-          return false;
-        }
-        
-        // Add the product first
-        targetItem = { product: targetProduct, addons: [] };
-        basket.push(targetItem);
-      }
-      
-      // Add addon to the target product
-      targetItem.addons.push(product);
-    } else {
-      // No target product specified, add to last product in basket
-      if (basket.length === 0) {
-        showErrorMessage("Please add a product first before adding add-ons.");
-        return false;
-      }
-      
-      const lastItem = basket[basket.length - 1];
-      if (lastItem.product === null) {
-        showErrorMessage("Please add a product first before adding add-ons.");
-        return false;
-      }
-      
-      lastItem.addons.push(product);
-    }
+  if (product === "banana" && hasStrawberry) {
+    showErrorMessage("Strawberries and bananas cannot be combined.");
+    return false;
   }
+  
+  // Add product with selected addons
+  const addons = selectedAddons || [];
+  basket.push({ product: product, addons: addons });
   
   localStorage.setItem("basket", JSON.stringify(basket));
   return true;
+}
+
+function toggleAddonSelection(button, addonId) {
+  // Special handling for vanilla ice cream - Ghislain has taken it!
+  if (addonId === "vanilla-ice-cream") {
+    showGhislainNotification();
+    return; // Don't allow selection
+  }
+  
+  // Toggle selection state
+  const isSelected = button.classList.contains("addon-selected");
+  
+  if (isSelected) {
+    button.classList.remove("addon-selected");
+  } else {
+    button.classList.add("addon-selected");
+  }
 }
 
 function showErrorMessage(message) {

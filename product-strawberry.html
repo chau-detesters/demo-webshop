@@ -100,14 +100,28 @@
     <script src="shop.js"></script>
     <script>
       document.getElementById("addToBasket").onclick = function () {
-        addToBasket("strawberry");
+        // Get all selected add-ons
+        const selectedAddons = [];
+        document.querySelectorAll(".addon-btn.addon-selected").forEach(button => {
+          selectedAddons.push(button.getAttribute("data-addon"));
+        });
+        
+        // Add product with selected add-ons
+        const success = addToBasket("strawberry", selectedAddons);
+        
+        if (success) {
+          // Clear selections after adding
+          document.querySelectorAll(".addon-btn.addon-selected").forEach(button => {
+            button.classList.remove("addon-selected");
+          });
+        }
       };
       
-      // Add-ons button handlers
+      // Add-ons button handlers - toggle selection
       document.querySelectorAll(".addon-btn").forEach(button => {
         button.onclick = function() {
           const addon = this.getAttribute("data-addon");
-          addToBasket(addon, "strawberry");
+          toggleAddonSelection(this, addon);
         };
       });
     </script>
