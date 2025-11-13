@@ -107,7 +107,7 @@
       document.querySelectorAll(".addon-btn").forEach(button => {
         button.onclick = function() {
           const addon = this.getAttribute("data-addon");
-          addToBasket(addon);
+          addToBasket(addon, "banana");
         };
       });
     </script>
